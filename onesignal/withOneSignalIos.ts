@@ -150,23 +150,36 @@ const withOneSignalNSE: ConfigPlugin<OneSignalPluginProps> = (config, props) => 
   ]);
 }
 
-const withOneSignalXcodeProject: ConfigPlugin<OneSignalPluginProps> = (config, props) => {
-  return withXcodeProject(config, newConfig => {
-    const xcodeProject = newConfig.modResults
+const withOneSignalXcodeProject: ConfigPlugin<OneSignalPluginProps> = (
+  config,
+  props
+) => {
+  return withXcodeProject(config, (newConfig) => {
+    const xcodeProject = newConfig.modResults;
 
     if (!!xcodeProject.pbxTargetByName(NSE_TARGET_NAME)) {
-      OneSignalLog.log(`${NSE_TARGET_NAME} already exists in project. Skipping...`);
+      OneSignalLog.log(
+        `${NSE_TARGET_NAME} already exists in project. Skipping...`
+      );
       return newConfig;
     }
 
     // Create new PBXGroup for the extension
-    const extGroup = xcodeProject.addPbxGroup([...NSE_EXT_FILES, NSE_SOURCE_FILE], NSE_TARGET_NAME, NSE_TARGET_NAME);
+    const extGroup = xcodeProject.addPbxGroup(
+      [...NSE_EXT_FILES, NSE_SOURCE_FILE],
+      NSE_TARGET_NAME,
+      NSE_TARGET_NAME
+    );
 
     // Add the new PBXGroup to the top level group. This makes the
     // files / folder appear in the file explorer in Xcode.
     const groups = xcodeProject.hash.project.objects["PBXGroup"];
-    Object.keys(groups).forEach(function(key) {
-      if (typeof groups[key] === "object" && groups[key].name === undefined && groups[key].path === undefined) {
+    Object.keys(groups).forEach(function (key) {
+      if (
+        typeof groups[key] === "object" &&
+        groups[key].name === undefined &&
+        groups[key].path === undefined
+      ) {
         xcodeProject.addToPbxGroup(extGroup.uuid, key);
       }
     });
@@ -176,12 +189,19 @@ const withOneSignalXcodeProject: ConfigPlugin<OneSignalPluginProps> = (config, p
     // An upstream fix should be made to the code referenced in this link:
     //   - https://github.com/apache/cordova-node-xcode/blob/8b98cabc5978359db88dc9ff2d4c015cba40f150/lib/pbxProject.js#L860
     const projObjects = xcodeProject.hash.project.objects;
-    projObjects['PBXTargetDependency'] = projObjects['PBXTargetDependency'] || {};
-    projObjects['PBXContainerItemProxy'] = projObjects['PBXTargetDependency'] || {};
+    projObjects["PBXTargetDependency"] =
+      projObjects["PBXTargetDependency"] || {};
+    projObjects["PBXContainerItemProxy"] =
+      projObjects["PBXTargetDependency"] || {};
 
     // Add the NSE target
     // This adds PBXTargetDependency and PBXContainerItemProxy for you
-    const nseTarget = xcodeProject.addTarget(NSE_TARGET_NAME, "app_extension", NSE_TARGET_NAME, `${config.ios?.bundleIdentifier}.${NSE_TARGET_NAME}`);
+    const nseTarget = xcodeProject.addTarget(
+      NSE_TARGET_NAME,
+      "app_extension",
+      NSE_TARGET_NAME,
+      `${config.ios?.bundleIdentifier}.${NSE_TARGET_NAME}`
+    );
 
     // Add build phases to the new target
     xcodeProject.addBuildPhase(
@@ -190,7 +210,12 @@ const withOneSignalXcodeProject: ConfigPlugin<OneSignalPluginProps> = (config, p
       "Sources",
       nseTarget.uuid
     );
-    xcodeProject.addBuildPhase([], "PBXResourcesBuildPhase", "Resources", nseTarget.uuid);
+    xcodeProject.addBuildPhase(
+      [],
+      "PBXResourcesBuildPhase",
+      "Resources",
+      nseTarget.uuid
+    );
 
     xcodeProject.addBuildPhase(
       [],
@@ -209,7 +234,8 @@ const withOneSignalXcodeProject: ConfigPlugin<OneSignalPluginProps> = (config, p
       ) {
         const buildSettingsObj = configurations[key].buildSettings;
         buildSettingsObj.DEVELOPMENT_TEAM = props?.devTeam;
-        buildSettingsObj.IPHONEOS_DEPLOYMENT_TARGET = props?.iPhoneDeploymentTarget ?? IPHONEOS_DEPLOYMENT_TARGET;
+        buildSettingsObj.IPHONEOS_DEPLOYMENT_TARGET =
+          props?.iPhoneDeploymentTarget ?? IPHONEOS_DEPLOYMENT_TARGET;
         buildSettingsObj.TARGETED_DEVICE_FAMILY = TARGETED_DEVICE_FAMILY;
         buildSettingsObj.CODE_SIGN_ENTITLEMENTS = `${NSE_TARGET_NAME}/${NSE_TARGET_NAME}.entitlements`;
         buildSettingsObj.CODE_SIGN_STYLE = "Automatic";
@@ -217,19 +243,28 @@ const withOneSignalXcodeProject: ConfigPlugin<OneSignalPluginProps> = (config, p
     }
 
     // Add development teams to both your target and the original project
-    xcodeProject.addTargetAttribute("DevelopmentTeam", props?.devTeam, nseTarget);
+    xcodeProject.addTargetAttribute(
+      "DevelopmentTeam",
+      props?.devTeam,
+      nseTarget
+    );
     xcodeProject.addTargetAttribute("DevelopmentTeam", props?.devTeam);
     return newConfig;
-  })
-}
+  });
+};
 
-export const withOneSignalIos: ConfigPlugin<OneSignalPluginProps> = (config, props) => {
+export const withOneSignalIos: ConfigPlugin<OneSignalPluginProps> = (
+  config,
+  props
+) => {
   config = withAppEnvironment(config, props);
   config = withRemoteNotificationsPermissions(config, props);
-  config = withAppGroupPermissions(config, props);
-  config = withOneSignalPodfile(config, props)
-  config = withOneSignalNSE(config, props)
-  config = withOneSignalXcodeProject(config, props)
+  if (!props.disableAppExtension) {
+    config = withAppGroupPermissions(config, props);
+    config = withOneSignalPodfile(config, props);
+    config = withOneSignalNSE(config, props);
+    config = withOneSignalXcodeProject(config, props);
+  }
   config = withEasManagedCredentials(config, props);
   return config;
 };
