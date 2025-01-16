@@ -31,8 +31,7 @@ export function validatePluginProps(props: any): void {
   }
 
   if (
-    (props.disableAppExtension !== null ||
-      props.disableAppExtension !== undefined) &&
+    typeof props.disableAppExtension !== "undefined" &&
     typeof props.disableAppExtension !== "boolean"
   ) {
     throw new Error(
